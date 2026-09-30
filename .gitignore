@@ -35,3 +35,5 @@ data/*
 *.pem
 *.log
 .vercel/
+checkpoint/
+data/

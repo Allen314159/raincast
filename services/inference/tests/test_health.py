@@ -7,4 +7,8 @@ def test_health() -> None:
     response = TestClient(app).get("/health")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "modelLoaded": False}
+    assert response.json() == {
+        "status": "ok",
+        "modelLoaded": False,
+        "modelVersion": "convlstm-89000",
+    }
