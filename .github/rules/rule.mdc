@@ -1,0 +1,46 @@
+---
+description: RainCast project rules for maintainable Next.js and TypeScript changes. Apply when editing the web app or shared project configuration.
+globs: **/*.{ts,tsx,js,jsx,mts}
+
+---
+
+# RainCast Project Rules
+
+## Context First
+
+- Read the relevant project documentation before non-trivial work, especially `.github/AGENTS.md`, `docs/PROJECT.md`, and `docs/RULES.md`.
+- Check `docs/` and `.github/` when those directories exist. If they do not exist, continue with the available project documentation and state that limitation rather than inventing their contents.
+- Keep a clear todo list for multi-step work so the implementation and verification steps remain visible.
+
+## Clean, Maintainable TypeScript
+
+- Use strict TypeScript and follow the repository ESLint configuration.
+- Never use `any`. Use `unknown` for genuinely untrusted values, then narrow or validate it before use. This matches the project's existing type-safety rule; banning `unknown` would make safe runtime-boundary handling harder.
+- Remove unused files, variables, imports, and dead code when they are part of the touched change. Do not remove unrelated user code.
+- Prefer small functions with one responsibility, descriptive names, early returns, and comments that explain why rather than what.
+- Do not add a dependency without checking the project rules and documenting why it is needed.
+
+## Project Structure
+
+- Follow the existing directory structure. This repository currently uses the root `app/` directory, so do not force a `src/` tree into the project.
+- Keep a component in its own file when it is a meaningful reusable or independently understandable UI unit.
+- Extract shared UI into a shared components directory only when the repository has established one or the change genuinely introduces shared UI.
+- Extract repeated helpers into a shared utilities directory and shared data types into a types directory when those abstractions are used by multiple modules. Do not create folders solely to satisfy a rule.
+- Keep shared constant values in a constants module when they have more than one consumer. Keep helper functions in utilities; constants should not become a miscellaneous global-function container.
+- Use PascalCase for components, camelCase for variables and functions, and the naming conventions already used by nearby files.
+
+## UI and Text
+
+- Use the project's existing UI components and styling conventions. Shadcn UI is not currently installed in the project, so do not add or pretend to use it without the owner's approval to add a dependency.
+- Keep user-facing labels, error messages, and validation messages in English.
+- Preserve required RainCast forecast disclaimer text: `Research demo - not an operational weather forecast.`
+- Provide loading, empty, error, and accessible states for data-fetching UI where applicable.
+
+## Validation After Changes
+
+- After every code change, run the applicable checks before continuing:
+	- `npm run lint`
+	- `npx tsc --noEmit`
+- Run tests and builds required by the touched area. Report the real output and identify unavailable checks; never claim a check passed without running it.
+- For logic changes, add or update a deterministic test. For bug fixes, add a regression test before the fix when practical.
+- Preserve existing project contracts, domain formulas, API schemas, and user changes. Ask before changing a protected contract or an unresolved project question.
