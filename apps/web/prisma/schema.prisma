@@ -1,0 +1,30 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model RadarEvent {
+  id          String     @id @default(cuid())
+  slug        String     @unique
+  name        String
+  startTime   DateTime
+  description String?
+  forecasts   Forecast[]
+}
+
+model Forecast {
+  id           String     @id @default(cuid())
+  eventId      String
+  event        RadarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  modelVersion String
+  latencyMs    Int
+  csiConvlstm  Json
+  csiPersist   Json
+  createdAt    DateTime   @default(now())
+
+  @@index([eventId, createdAt])
+}

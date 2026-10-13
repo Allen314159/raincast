@@ -1,0 +1,20 @@
+[
+  {
+    "slug": "placeholder-event-1",
+    "name": "Placeholder Event One",
+    "startTime": "2023-05-14T00:00:00.000Z",
+    "description": "FAKE DESCRIPTION: replace this event description."
+  },
+  {
+    "slug": "placeholder-event-2",
+    "name": "Placeholder Event Two",
+    "startTime": "2023-05-26T00:00:00.000Z",
+    "description": "FAKE DESCRIPTION: replace this event description."
+  },
+  {
+    "slug": "placeholder-event-3",
+    "name": "Placeholder Event Three",
+    "startTime": "2023-06-01T00:00:00.000Z",
+    "description": "FAKE DESCRIPTION: replace this event description."
+  }
+]
