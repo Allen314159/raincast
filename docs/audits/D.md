@@ -1170,7 +1170,7 @@ heavy pixels / (6 * 512 * 512)
 | 14 | 1048 | 73,322 | 0.04661687215169271 | NOT FOUND | NOT FOUND |
 | 15 | 3672 | 71,653 | 0.04555575052897135 | NOT FOUND | NOT FOUND |
 
-### 6.3 Top 15 windows: Interpretation B — `x=(dBZ+10)/70`
+### 6.3 Top 15 windows: Interpretation B — `x=(dBZ+10)/70` with HKO Z-R
 
 | Rank | Start index | Heavy target pixels | Heavy fraction | Timestamp | 12-frame spacing |
 |---:|---:|---:|---:|---|---|
@@ -1190,7 +1190,26 @@ heavy pixels / (6 * 512 * 512)
 | 14 | 3746 | 33,824 | 0.021504720052083332 | NOT FOUND | NOT FOUND |
 | 15 | 2270 | 32,285 | 0.02052625020345052 | NOT FOUND | NOT FOUND |
 
-The two interpretations produce materially different event rankings and heavy-pixel counts. For example:
+The two decoding interpretations produce materially different event rankings
+and heavy-pixel counts. The table above uses the HKO evaluator pair
+`a=58.53, b=1.56`, not the Singapore application pair. The audit-D count of
+`112,979` is therefore a verified HKO reference count, not the RainCast
+application sanity target.
+
+The Phase 4 diagnostic reran the same start-3647 window with channel 0, no
+valid-pixel mask, input frames 3647..3652, and target frames 3653..3658:
+
+```text
+threshold                         target-frame counts                         total
+HKO 0.6181969320163115            16412, 20261, 20796, 21014, 18902, 15594  112979
+Singapore 0.6286624231331005      13966, 17634, 18306, 18528, 16469, 13815   98718
+```
+
+The Singapore result is the authoritative RainCast result. The difference is
+entirely explained by the threshold: all other conditions, including frame
+indices, target-window convention, channel, and mask handling, were held
+constant. The current streaming implementation reproduces both totals
+independently.
 
 ```text
 Top window under x=dBZ/70:
@@ -1198,7 +1217,7 @@ Top window under x=dBZ/70:
     heavy count 264,769
     fraction 0.1683355967203776
 
-Top window under x=(dBZ+10)/70:
+Top window under x=(dBZ+10)/70 with HKO Z-R:
     start 3647
     heavy count 112,979
     fraction 0.07183011372884114
@@ -1208,7 +1227,13 @@ These should not be treated as equivalent event definitions.
 
 ### VERDICT
 
-The archive supports two materially different heavy-rain rankings depending on normalization. Exact event timestamps and verified 10-minute spacing are NOT FOUND because the archive contains no timing metadata and cannot be aligned to the incomplete raw inventory.
+The archive supports materially different heavy-rain rankings depending on
+normalization and Z-R pair. For the RainCast application contract, the corrected
+sanity target is start `3647` with `98,718` heavy target pixels and fraction
+`0.062763214111328`. The `112,979` value remains useful only as the HKO
+evaluator reference. Exact event timestamps and verified 10-minute spacing are
+NOT FOUND because the archive contains no timing metadata and cannot be aligned
+to the incomplete raw inventory.
 
 ---
 
@@ -1256,6 +1281,16 @@ normalization = "dbz_over_70"
 It should not infer the convention from the numeric range alone.
 
 ## Threshold constant
+
+For the RainCast application, D1 selects the Singapore pair `a=61.75, b=1.61`:
+
+```text
+10 mm/h normalized threshold:
+    0.6286624231331005
+```
+
+Phase 4 uses this Singapore threshold. At archive start `3647`, with channel 0
+and target frames `3653..3658`, the measured heavy-pixel count is `98,718`.
 
 If using the current thesis evaluator and `a=58.53`, `b=1.56`:
 
