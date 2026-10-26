@@ -7,11 +7,11 @@ from app import main
 
 class StubModel(torch.nn.Module):
     def forward(self, input_sequence: torch.Tensor) -> torch.Tensor:
-        return torch.zeros((6, 1, 360, 360), dtype=input_sequence.dtype)
+        return torch.zeros((6, 1, 512, 512), dtype=input_sequence.dtype)
 
 
 def make_event(events_dir: str) -> None:
-    frames = np.full((6, 360, 360), 0.8, dtype=np.float32)
+    frames = np.full((6, 512, 512), 0.8, dtype=np.float32)
     np.savez(f"{events_dir}/synthetic.npz", input=frames, target=frames)
 
 
@@ -19,6 +19,7 @@ def test_predict_returns_six_frames_and_metrics(tmp_path, monkeypatch) -> None:
     make_event(str(tmp_path))
     monkeypatch.setattr(main, "EVENTS_DIR", tmp_path)
     monkeypatch.setattr(main, "model", StubModel())
+    monkeypatch.setattr(main, "MODEL_VERSION", "convlstm-77000")
 
     response = TestClient(main.app).post("/predict", json={"eventId": "synthetic"})
 
@@ -35,6 +36,7 @@ def test_predict_returns_six_frames_and_metrics(tmp_path, monkeypatch) -> None:
 def test_predict_unknown_event_returns_404(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr(main, "EVENTS_DIR", tmp_path)
     monkeypatch.setattr(main, "model", StubModel())
+    monkeypatch.setattr(main, "MODEL_VERSION", "convlstm-77000")
 
     response = TestClient(main.app).post("/predict", json={"eventId": "missing"})
 
@@ -43,6 +45,7 @@ def test_predict_unknown_event_returns_404(tmp_path, monkeypatch) -> None:
 
 def test_predict_invalid_body_returns_422(monkeypatch) -> None:
     monkeypatch.setattr(main, "model", StubModel())
+    monkeypatch.setattr(main, "MODEL_VERSION", "convlstm-77000")
 
     response = TestClient(main.app).post("/predict", json={})
 

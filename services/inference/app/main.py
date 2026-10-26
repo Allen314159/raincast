@@ -23,7 +23,9 @@ from app.schemas import (
 
 EVENTS_DIR = Path(__file__).parent.parent / "data" / "events"
 MODEL_PATH = os.getenv("MODEL_PATH")
-MODEL_VERSION = os.getenv("MODEL_VERSION", "convlstm-89000")
+MODEL_VERSION = os.getenv("MODEL_VERSION")
+if MODEL_PATH and not MODEL_VERSION:
+    raise RuntimeError("MODEL_VERSION is required when MODEL_PATH is set")
 model: torch.nn.Module | None = None
 
 
@@ -60,7 +62,7 @@ def load_event(event_id: str) -> tuple[np.ndarray, np.ndarray]:
     with np.load(event_path(event_id)) as event:
         input_frames = np.asarray(event["input"], dtype=np.float32)
         target_frames = np.asarray(event["target"], dtype=np.float32)
-    expected_shape = (6, 360, 360)
+    expected_shape = (6, 512, 512)
     if input_frames.shape != expected_shape or target_frames.shape != expected_shape:
         raise HTTPException(status_code=500, detail="Invalid event shape")
     if (
@@ -90,10 +92,12 @@ def health() -> HealthResponse:
 def predict(request: PredictRequest) -> PredictResponse:
     if model is None:
         raise HTTPException(status_code=503, detail="Model is not loaded")
+    if MODEL_VERSION is None:
+        raise HTTPException(status_code=503, detail="Model version is not configured")
 
     input_frames, observed = load_event(request.eventId)
     started = time.perf_counter()
-    input_tensor = torch.from_numpy(input_frames[:, np.newaxis, ...])
+    input_tensor = torch.from_numpy(input_frames[:, np.newaxis, np.newaxis, ...])
     with torch.no_grad():
         prediction = model(input_tensor).detach().cpu().numpy()
     prediction = np.clip(prediction[:, 0, ...], 0.0, 1.0)

@@ -24,7 +24,7 @@ def main() -> None:
     if model is None:
         raise SystemExit(f"Checkpoint was not found: {model_path}")
     input_frames, observed = load_event(event_id)
-    input_tensor = torch.from_numpy(input_frames[:, np.newaxis, ...])
+    input_tensor = torch.from_numpy(input_frames[:, np.newaxis, np.newaxis, ...])
     with torch.no_grad():
         prediction = model(input_tensor).cpu().numpy()[:, 0]
     prediction = np.clip(prediction, 0.0, 1.0)
