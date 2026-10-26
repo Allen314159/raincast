@@ -21,7 +21,9 @@ from app.schemas import (
     PredictResponse,
 )
 
-EVENTS_DIR = Path(__file__).parent.parent / "data" / "events"
+EVENTS_DIR = Path(
+    os.getenv("EVENTS_DIR", str(Path(__file__).parent.parent / "data" / "events"))
+)
 MODEL_PATH = os.getenv("MODEL_PATH")
 MODEL_VERSION = os.getenv("MODEL_VERSION")
 if MODEL_PATH and not MODEL_VERSION:
@@ -101,6 +103,8 @@ def predict(request: PredictRequest) -> PredictResponse:
     with torch.no_grad():
         prediction = model(input_tensor).detach().cpu().numpy()
     prediction = np.clip(prediction[:, 0, ...], 0.0, 1.0)
+    if prediction.ndim == 4 and prediction.shape[1] == 1:
+        prediction = prediction[:, 0, ...]
     persistence = np.repeat(input_frames[-1][np.newaxis, ...], 6, axis=0)
 
     observed_mask = heavy_rain_mask(observed)
