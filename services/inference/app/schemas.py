@@ -38,4 +38,4 @@ class PredictResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     modelLoaded: bool
-    modelVersion: str
+    modelVersion: str | None

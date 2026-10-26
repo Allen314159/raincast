@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from app.metrics import bias, contingency, csi, far, per_lead_metrics, pod
 
@@ -58,3 +59,14 @@ def test_per_lead_metrics_returns_none_for_all_zero_masks() -> None:
         "far": [None] * 6,
         "bias": [None] * 6,
     }
+
+
+@pytest.mark.parametrize(
+    ("forecast_shape", "observed_shape"),
+    [((5, 2, 2), (6, 2, 2)), ((6, 2, 2), (6, 2, 3))],
+)
+def test_per_lead_metrics_rejects_mismatched_shapes(
+    forecast_shape: tuple[int, ...], observed_shape: tuple[int, ...]
+) -> None:
+    with pytest.raises(ValueError, match="matching shapes|exactly six"):
+        per_lead_metrics(np.zeros(forecast_shape), np.zeros(observed_shape))

@@ -24,7 +24,7 @@ describe("forecast schemas", () => {
     expect(
       predictResponseSchema.safeParse({
         eventId: "2023-05-14-heavy-cell",
-        modelVersion: "convlstm-89000",
+        modelVersion: "convlstm-77000",
         thresholdMmPerHour: 10,
         leadMinutes: [10, 20, 30, 40, 50, 60],
         frames: {
@@ -50,7 +50,7 @@ describe("forecast schemas", () => {
     expect(
       predictResponseSchema.safeParse({
         eventId: "2023-05-14-heavy-cell",
-        modelVersion: "convlstm-89000",
+        modelVersion: "convlstm-77000",
         thresholdMmPerHour: 10,
         leadMinutes: [10, 20, 30, 40, 50, 60],
         frames: { observed: [], convlstm: [], persistence: [] },

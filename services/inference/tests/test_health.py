@@ -10,5 +10,5 @@ def test_health() -> None:
     assert response.json() == {
         "status": "ok",
         "modelLoaded": False,
-        "modelVersion": "convlstm-89000",
+        "modelVersion": None,
     }

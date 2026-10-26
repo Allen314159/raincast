@@ -48,13 +48,24 @@ def per_lead_metrics(
     forecast: np.ndarray, observed: np.ndarray
 ) -> dict[str, list[float | None]]:
     """Compute CSI, POD, FAR, and BIAS for each of six lead-time frames."""
+    if forecast.shape != observed.shape:
+        raise ValueError(
+            "forecast and observed must have matching shapes; "
+            f"received {forecast.shape} and {observed.shape}"
+        )
+    if forecast.ndim < 1 or forecast.shape[0] != 6:
+        raise ValueError(
+            "forecast and observed must contain exactly six lead-time frames"
+        )
     metrics: dict[str, list[float | None]] = {
         "csi": [],
         "pod": [],
         "far": [],
         "bias": [],
     }
-    for forecast_frame, observed_frame in zip(forecast, observed):
+    for index in range(6):
+        forecast_frame = forecast[index]
+        observed_frame = observed[index]
         hits, misses, false_alarms = contingency(forecast_frame, observed_frame)
         metrics["csi"].append(csi(hits, misses, false_alarms))
         metrics["pod"].append(pod(hits, misses))
