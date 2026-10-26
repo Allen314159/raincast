@@ -1,6 +1,22 @@
 # RainCast
 
-RainCast is a research-demo monorepo scaffold for a Next.js web app and a FastAPI inference service. The Phase 1 scaffold contains only a placeholder web page and a health endpoint; model inference, radar data, persistence, and database features are not implemented yet.
+RainCast is a research-demo monorepo for a Next.js web app and a FastAPI
+inference service. It is not an operational weather forecast.
+
+## Status
+
+The repository currently has a buildable Next.js app with a placeholder home
+page, API route code and Prisma schema, plus a FastAPI service with a health
+endpoint and unit-tested inference helpers. The web checks (tests, lint,
+type-check and production build) and inference checks (ruff and pytest) pass in
+the current local environment.
+
+The following are not available yet: a finished UI, usable real event files,
+Prisma migrations, Docker Compose, deployment, and a verified end-to-end run
+with a real event and checkpoint. The seeded event manifest still contains
+placeholders. See [docs/PROJECT.md](docs/PROJECT.md) and
+[docs/audits/main-state.md](docs/audits/main-state.md) for the scope and
+evidence.
 
 ## Run the web app
 
@@ -35,5 +51,3 @@ Run its checks with:
 ruff check .
 pytest
 ```
-
-The service currently exposes only `GET /health`.
