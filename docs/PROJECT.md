@@ -53,18 +53,22 @@ This is a **research demo, not an operational weather service.** The UI must say
 | Baseline result (test set, >10 mm/h) | CSI 0.2214 · POD 0.5968 · FAR 0.7462 · BIAS 2.3516 |
 | Baseline CSI by lead time | t+10 0.3701 · t+20 0.2759 · t+30 0.2196 · t+40 0.1815 · t+50 0.1522 · t+60 0.1291 |
 
+**UNDER REVIEW - see `docs/DECISIONS.md` D1/D2/D10.** The normalisation,
+Z–R pair, heavy-rain threshold, 360 × 360 grid, and 0.667 km/pixel claim above
+are preserved pending the decisions and evidence review.
+
 **Only the ConvLSTM baseline is served here.** The thesis's proposed model reached CSI 0.291 (+83% over persistence); never present the baseline's numbers as that model's numbers.
 
 ## 4. Open questions (must be answered before/while building — agents must NOT guess)
 
 | # | Question | Where to look | Answer |
 |---|---|---|---|
-| Q1 | Exact model class and constructor arguments used to train `encoder_forecaster_89000.pth` | owner's training code | The attached training code builds `EF(encoder, forecaster)` from `nowcasting/models/model.py:24` and `experiments/convLSTM_balacned_mse_mae/main.py:112-118`. Its recurrent cells are `ConvLSTM(input_channel, num_filter, b_h_w, kernel_size, stride=1, padding=1)` from `nowcasting/models/convLSTM.py:5`. The configured encoder cells are `8 -> 64`, `192 -> 192`, `192 -> 192`; the forecaster cells are `192 -> 192`, `192 -> 192`, `64 -> 64`, configured in `experiments/net_params.py:88-121`. The attached source was verified, but the requested `89000` checkpoint itself was not found. |
-| Q2 | Input tensor layout the model expects (e.g. `[B, T, C, H, W]` vs `[T, B, C, H, W]`) | training code | Dataset tensors are `float32` (`npz_dataset.py:104,113`) and are initially batched as `[B, T, C, H, W]`. Training permutes them at `experiments/convLSTM_balacned_mse_mae/main.py:143` to `[T, B, C, H, W]`, which is the model input layout documented in `nowcasting/models/encoder.py:30`. The attached configuration and smoke test use `T=6`, `C=1`, and `H=W=512`, not RainCast's specified 360x360 grid. |
-| Q3 | How NaN pixels were filled before training (0? masked?) | preprocessing code | Not found. `np.nanmax` is used only to inspect the maximum (`npz_dataset.py:108`); `np.clip` does not replace NaNs (`npz_dataset.py:111`). The NPY training path creates an all-ones mask (`experiments/convLSTM_balacned_mse_mae/main.py:148`), so explicit NaN filling or invalid-pixel masking is not evidenced. Do not assume NaNs were filled with zero. |
-| Q4 | Is the model output already in [0, 1] (sigmoid/clamp) or raw? | training code | Raw. The final `conv3_3` layer has no sigmoid or clamp (`experiments/net_params.py:112`; activation insertion is in `nowcasting/utils.py:31`). Evaluation clamps the output afterward at `nowcasting/evaluator.py:145`, so the forward output itself is not verified to be in [0, 1]. |
+| Q1 | Exact model class and constructor arguments used to train `encoder_forecaster_89000.pth` | owner's training code and audits B/B3 | The thesis geometry is 512×512 with encoder/forecaster gate order `i,f,g,o`; the local checkpoint's provenance is still unproven. See `docs/audits/B.md`, `docs/audits/B3.md`, and thesis §4.2.3. |
+| Q2 | Input tensor layout the model expects (e.g. `[B, T, C, H, W]` vs `[T, B, C, H, W]`) | training code | `[T,B,C,512,512]`, with `T=6` and `C=1`. See `docs/audits/B.md`, `docs/audits/B3.md`, and thesis §4.2.3. |
+| Q3 | How NaN pixels were filled before training (0? masked?) | preprocessing code and audits C/D | The thesis sets NaN pixels to 0.0 (no rain), thesis §3.2.1 d. The archive has no NaNs and shows raw no-data as 0. Training used an all-ones mask and ignored channel 1; channel 1 is binary and probably a validity mask, but that interpretation is unverified. See `docs/audits/C.md` and `docs/audits/D.md`. |
+| Q4 | Is the model output already in [0, 1] (sigmoid/clamp) or raw? | training code | Raw output is not bounded; clamp it to [0,1] at the service boundary. See `docs/audits/B.md` and thesis §3.2.1 d. |
 | Q5 | Are the radar sample files allowed to be published? | thesis advisor | _TBD_ — requires confirmation from the thesis advisor. |
-| Q6 | Checkpoint file size; where can it be hosted? | file system | `encoder_forecaster_89000.pth` was not found. The only matching file is `outputs/encoder_forecaster_77000.pth`, measured at 50,587,234 bytes (48.24 MiB). A hosting location for the requested checkpoint is _TBD_. |
+| Q6 | Checkpoint file size; where can it be hosted? | file system | The checkpoint we have is `encoder_forecaster_77000.pth`, measured at 50,587,234 bytes. A hosting location is _TBD_. See `docs/audits/B.md` and `docs/audits/D.md`. |
 
 Record answers here as they are resolved.
 
@@ -97,15 +101,13 @@ Browser ──► Next.js (UI + API routes) ──► FastAPI /predict ──►
 raincast/
   AGENTS.md
   README.md
-  docs/PROJECT.md  docs/RULES.md
-  docker-compose.yml
-  .env.example
-  .github/workflows/ci.yml
+  docs/PROJECT.md  docs/RULES.md  docs/DECISIONS.md
   apps/web/
-    prisma/schema.prisma  prisma/seed.ts
-    src/app/                 # pages + route handlers
-    src/lib/                 # zod schemas, api client, small helpers
-    src/**/*.test.ts
+    app/                      # pages + route handlers
+    src/lib/                  # zod schemas, api client, small helpers
+    prisma/schema.prisma  prisma/seed.ts  prisma/events.json
+    tests/                    # Vitest tests
+    package.json
   services/inference/
     app/main.py              # FastAPI app, routes
     app/model.py             # ConvLSTM architecture (copied from thesis code)
@@ -116,6 +118,8 @@ raincast/
     data/events/*.npz        # curated samples (only if publishing is allowed)
     tests/
     requirements.txt
+  public/
+  README.md
 ```
 
 ## 7. Data contract
