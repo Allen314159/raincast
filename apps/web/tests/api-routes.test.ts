@@ -42,7 +42,7 @@ const event = {
 
 const prediction = {
   eventId: event.slug,
-  modelVersion: "convlstm-89000",
+  modelVersion: "convlstm-77000",
   thresholdMmPerHour: 10,
   leadMinutes: [10, 20, 30, 40, 50, 60],
   frames: {

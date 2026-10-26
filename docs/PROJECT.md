@@ -49,7 +49,7 @@ This is a **research demo, not an operational weather service.** The UI must say
 | uint8 decoding (raw files, not used here) | `dBZ = (uint8 − 64) / 2`; values 0 and 255 are invalid → NaN |
 | Z–R relation | Singapore: `Z = 61.75 · R^1.61` → `R = (10^(dBZ/10) / 61.75)^(1/1.61)` |
 | Heavy-rain threshold | R ≥ 10 mm/h ≈ 34.0 dBZ ≈ 0.629 normalised |
-| Baseline model | ConvLSTM encoder–forecaster, Adam lr 1e-4, StepLR (γ 0.7 / 20k iters), balanced B-MSE + B-MAE loss, checkpoint `encoder_forecaster_89000.pth` |
+| Baseline model | ConvLSTM encoder–forecaster for `[6,B,1,512,512]` input, checkpoint `encoder_forecaster_77000.pth` served as `convlstm-77000` |
 | Baseline result (test set, >10 mm/h) | CSI 0.2214 · POD 0.5968 · FAR 0.7462 · BIAS 2.3516 |
 | Baseline CSI by lead time | t+10 0.3701 · t+20 0.2759 · t+30 0.2196 · t+40 0.1815 · t+50 0.1522 · t+60 0.1291 |
 
@@ -63,7 +63,7 @@ are preserved pending the decisions and evidence review.
 
 | # | Question | Where to look | Answer |
 |---|---|---|---|
-| Q1 | Exact model class and constructor arguments used to train `encoder_forecaster_89000.pth` | owner's training code and audits B/B3 | The thesis geometry is 512×512 with encoder/forecaster gate order `i,f,g,o`; the local checkpoint's provenance is still unproven. See `docs/audits/B.md`, `docs/audits/B3.md`, and thesis §4.2.3. |
+| Q1 | Exact model class and constructor arguments used to train `encoder_forecaster_77000.pth` | owner's training code and audits B/B3 | The thesis geometry is 512×512 with encoder/forecaster gate order `i,f,g,o`; the local checkpoint's provenance is still unproven. See `docs/audits/B.md`, `docs/audits/B3.md`, and thesis §4.2.3. |
 | Q2 | Input tensor layout the model expects (e.g. `[B, T, C, H, W]` vs `[T, B, C, H, W]`) | training code | `[T,B,C,512,512]`, with `T=6` and `C=1`. See `docs/audits/B.md`, `docs/audits/B3.md`, and thesis §4.2.3. |
 | Q3 | How NaN pixels were filled before training (0? masked?) | preprocessing code and audits C/D | The thesis sets NaN pixels to 0.0 (no rain), thesis §3.2.1 d. The archive has no NaNs and shows raw no-data as 0. Training used an all-ones mask and ignored channel 1; channel 1 is binary and probably a validity mask, but that interpretation is unverified. See `docs/audits/C.md` and `docs/audits/D.md`. |
 | Q4 | Is the model output already in [0, 1] (sigmoid/clamp) or raw? | training code | Raw output is not bounded; clamp it to [0,1] at the service boundary. See `docs/audits/B.md` and thesis §3.2.1 d. |
@@ -125,13 +125,13 @@ raincast/
 ## 7. Data contract
 
 ### 7.1 Event file (`data/events/<slug>.npz`)
-- `input`: float32 `(6, 360, 360)`, normalised [0, 1]
-- `target`: float32 `(6, 360, 360)`, normalised [0, 1]
+- `input`: float32 `(6, 512, 512)`, normalised [0, 1]
+- `target`: float32 `(6, 512, 512)`, normalised [0, 1]
 - Optional: store as uint8 (`round(x*255)`) to shrink files; if so, dequantise on load and verify CSI changes by < 0.01.
 
 ### 7.2 Inference API (FastAPI)
 
-`GET /health` → `{ "status": "ok", "modelLoaded": true, "modelVersion": "convlstm-89000" }`
+`GET /health` → `{ "status": "ok", "modelLoaded": true, "modelVersion": "convlstm-77000" }`
 
 `POST /predict`
 ```jsonc
@@ -141,7 +141,7 @@ raincast/
 // response 200
 {
   "eventId": "2023-05-14-heavy-cell",
-  "modelVersion": "convlstm-89000",
+  "modelVersion": "convlstm-77000",
   "thresholdMmPerHour": 10,
   "leadMinutes": [10, 20, 30, 40, 50, 60],
   "frames": {                       // base64 PNG, 360x360, colour-mapped dBZ
@@ -217,7 +217,7 @@ Applied per lead time on the 360×360 grid, ignoring invalid pixels. Convert nor
 |---|---|---|
 | Web unit | Vitest | Zod schemas, metric formatting helpers, route handlers with FastAPI mocked |
 | API unit | pytest | dBZ round-trip, Z–R conversion, CSI/POD/FAR on hand-made arrays, `/predict` shape and status codes |
-| Model smoke | pytest | tiny **randomly initialised** model with the real architecture: output shape `(6, 360, 360)` and range |
+| Model smoke | pytest | tiny **randomly initialised** model with the real architecture: output shape `(6, 1, 1, 512, 512)` and finite values |
 | Manual/local | real checkpoint | reproduce plausible CSI behaviour (see acceptance below) |
 
 CI never needs the real checkpoint or real radar data.
