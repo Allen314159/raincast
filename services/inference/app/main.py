@@ -9,7 +9,7 @@ from fastapi import FastAPI, HTTPException
 
 from app.metrics import per_lead_metrics
 from app.model import build_model
-from app.preprocess import heavy_rain_mask
+from app.preprocess import HEAVY_RAIN_MM_H, heavy_rain_mask
 from app.render import frame_to_png_base64
 from app.schemas import (
     LEAD_MINUTES,
@@ -119,7 +119,7 @@ def predict(request: PredictRequest) -> PredictResponse:
     return PredictResponse(
         eventId=request.eventId,
         modelVersion=MODEL_VERSION,
-        thresholdMmPerHour=10.0,
+        thresholdMmPerHour=HEAVY_RAIN_MM_H,
         leadMinutes=LEAD_MINUTES,
         frames=rendered_frames,
         metrics=MetricSet(

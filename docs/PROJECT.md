@@ -42,20 +42,24 @@ This is a **research demo, not an operational weather service.** The UI must say
 | Thesis fact | Value used in this project |
 |---|---|
 | Data source | Nha Be weather radar, Ho Chi Minh City (10.6596°N, 106.7283°E), scan mode CD2, 120 km range |
-| Grid | 360 × 360 pixels, 0.667 km/pixel (240 × 240 km) |
+| Grid | Model grid 512 × 512; the archive is the full raw 720 × 720 frame bilinearly resized to 512 × 512 (about 0.469 km/pixel over about 240 km). The original preprocessing script was not found. |
 | Time step | ≈ 10 minutes between frames |
 | Sample structure | 6 input frames (t−50 … t0) → 6 target frames (t+10 … t+60), stored as `.npz` with arrays `input` and `target`, each `(6, 360, 360)` |
-| Normalisation | `x = (clip(dBZ, −10, 60) + 10) / 70`, range [0, 1] |
+| Normalisation | `x = (clip(dBZ, −10, 60) + 10) / 70`, range [0, 1]; decoding is `dBZ = 70x − 10` (audit E). |
 | uint8 decoding (raw files, not used here) | `dBZ = (uint8 − 64) / 2`; values 0 and 255 are invalid → NaN |
 | Z–R relation | Singapore: `Z = 61.75 · R^1.61` → `R = (10^(dBZ/10) / 61.75)^(1/1.61)` |
-| Heavy-rain threshold | R ≥ 10 mm/h ≈ 34.0 dBZ ≈ 0.629 normalised |
+| Heavy-rain threshold | R ≥ 10 mm/h → 34.0063696 dBZ → 0.6286624231 normalised |
 | Baseline model | ConvLSTM encoder–forecaster for `[6,B,1,512,512]` input, checkpoint `encoder_forecaster_77000.pth` served as `convlstm-77000` |
 | Baseline result (test set, >10 mm/h) | CSI 0.2214 · POD 0.5968 · FAR 0.7462 · BIAS 2.3516 |
 | Baseline CSI by lead time | t+10 0.3701 · t+20 0.2759 · t+30 0.2196 · t+40 0.1815 · t+50 0.1522 · t+60 0.1291 |
 
-**UNDER REVIEW - see `docs/DECISIONS.md` D1/D2/D10.** The normalisation,
-Z–R pair, heavy-rain threshold, 360 × 360 grid, and 0.667 km/pixel claim above
-are preserved pending the decisions and evidence review.
+The thesis ConvLSTM numbers refer to checkpoint 89000 and the 512 × 512 archive
+pipeline scored at threshold 0.6182. A different checkpoint (77000) is served
+here. The thesis' own pipeline is 360 × 360 with threshold 0.629, so those
+numbers are not like-for-like with the proposed model's numbers. The 512 × 512
+archive pipeline matches the full raw 720 × 720 frame resized bilinearly (audit
+E, correlation 0.991, about 0.469 km per pixel over about 240 km); the original
+preprocessing script was not found.
 
 **Only the ConvLSTM baseline is served here.** The thesis's proposed model reached CSI 0.291 (+83% over persistence); never present the baseline's numbers as that model's numbers.
 
@@ -199,7 +203,9 @@ Events are seeded from `prisma/seed.ts` using a manifest of slugs, names, start 
 
 ## 8. Metric definitions
 
-Applied per lead time on the 360×360 grid, ignoring invalid pixels. Convert normalised → dBZ → R (Z–R Singapore), then binarise with **R ≥ 10 mm/h**.
+Applied per lead time on the 512×512 model grid with no valid-pixel mask, as in
+the thesis evaluator. Convert normalised → dBZ → R (Z–R Singapore), then
+binarise with **R ≥ 10 mm/h** (34.0063696 dBZ, 0.6286624231 normalised).
 
 - `hits H` = forecast yes & observed yes · `misses M` = forecast no & observed yes · `false alarms F` = forecast yes & observed no
 - **CSI** = H / (H + M + F) · **POD** = H / (H + M) · **FAR** = F / (H + F) · **BIAS** = (H + F) / (H + M)
