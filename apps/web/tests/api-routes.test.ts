@@ -91,6 +91,30 @@ describe("event routes", () => {
 
     expect(response.status).toBe(404);
   });
+
+  it("maps one-event database failures to 503", async () => {
+    prismaMock.radarEvent.findUnique.mockRejectedValue(new Error("database failure"));
+
+    const response = await getEvent(new Request("http://localhost/api/events/event"), {
+      params: Promise.resolve({ slug: event.slug }),
+    });
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      error: { code: "database_unavailable", message: "Database unavailable" },
+    });
+  });
+
+  it("maps event database failures to 503", async () => {
+    prismaMock.radarEvent.findMany.mockRejectedValue(new Error("connection string should not leak"));
+
+    const response = await getEvents();
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      error: { code: "database_unavailable", message: "Database unavailable" },
+    });
+  });
 });
 
 describe("forecast routes", () => {
@@ -140,6 +164,56 @@ describe("forecast routes", () => {
     });
   });
 
+  it("rejects a response for a different event without saving", async () => {
+      prismaMock.radarEvent.findUnique.mockResolvedValue(event);
+      inferenceMock.mockResolvedValue({ ...prediction, eventId: "different-event" });
+
+      const response = await postForecast(
+        new Request("http://localhost/api/forecasts", {
+          method: "POST",
+          body: JSON.stringify({ eventId: event.slug }),
+        }),
+      );
+
+      expect(response.status).toBe(502);
+      expect(await response.json()).toEqual({
+        error: { code: "inference_bad_response", message: "Inference response identity is invalid" },
+      });
+      expect(prismaMock.forecast.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects a response without a non-empty model version", async () => {
+      prismaMock.radarEvent.findUnique.mockResolvedValue(event);
+      inferenceMock.mockResolvedValue({ ...prediction, modelVersion: " " });
+
+      const response = await postForecast(
+        new Request("http://localhost/api/forecasts", {
+          method: "POST",
+          body: JSON.stringify({ eventId: event.slug }),
+        }),
+      );
+
+      expect(response.status).toBe(502);
+      expect(await response.json()).toEqual({
+        error: { code: "inference_bad_response", message: "Inference response is invalid" },
+      });
+      expect(prismaMock.forecast.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects an oversized request body", async () => {
+      const response = await postForecast(
+        new Request("http://localhost/api/forecasts", {
+          method: "POST",
+          body: `{"eventId":"${"x".repeat(1_048_576)}"}`,
+        }),
+      );
+
+      expect(response.status).toBe(413);
+      expect(await response.json()).toEqual({
+        error: { code: "payload_too_large", message: "Request body is too large" },
+    });
+  });
+
   it.each([
     [502, "Bad inference response"],
     [503, "Inference unavailable"],
@@ -159,11 +233,12 @@ describe("forecast routes", () => {
     expect(await response.json()).toEqual({ error: { code: `INFERENCE_${status}`, message } });
   });
 
-  it("lists saved forecasts newest first", async () => {
+  it("resolves a slug before listing saved forecasts newest first", async () => {
+    prismaMock.radarEvent.findUnique.mockResolvedValue(event);
     prismaMock.forecast.findMany.mockResolvedValue([{ id: "run-1" }]);
 
     const response = await getForecasts(
-      new Request(`http://localhost/api/forecasts?eventId=${event.id}`),
+      new Request(`http://localhost/api/forecasts?eventId=${event.slug}`),
     );
 
     expect(response.status).toBe(200);
@@ -171,6 +246,48 @@ describe("forecast routes", () => {
     expect(prismaMock.forecast.findMany).toHaveBeenCalledWith({
       where: { eventId: event.id },
       orderBy: { createdAt: "desc" },
+    });
+    expect(prismaMock.radarEvent.findUnique).toHaveBeenCalledWith({ where: { slug: event.slug } });
+  });
+
+  it("returns 404 for an unknown forecast event slug", async () => {
+    prismaMock.radarEvent.findUnique.mockResolvedValue(null);
+
+    const response = await getForecasts(
+      new Request("http://localhost/api/forecasts?eventId=missing"),
+    );
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({
+      error: { code: "EVENT_NOT_FOUND", message: "Event not found" },
+    });
+    expect(prismaMock.forecast.findMany).not.toHaveBeenCalled();
+  });
+
+  it("maps forecast database failures to 503", async () => {
+    prismaMock.radarEvent.findUnique.mockRejectedValue(new Error("database URL should not leak"));
+
+    const response = await postForecast(
+      new Request("http://localhost/api/forecasts", {
+        method: "POST",
+        body: JSON.stringify({ eventId: event.slug }),
+      }),
+    );
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      error: { code: "database_unavailable", message: "Database unavailable" },
+    });
+  });
+
+  it("maps forecast-list database failures to 503", async () => {
+    prismaMock.forecast.findMany.mockRejectedValue(new Error("database failure"));
+
+    const response = await getForecasts(new Request("http://localhost/api/forecasts"));
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      error: { code: "database_unavailable", message: "Database unavailable" },
     });
   });
 

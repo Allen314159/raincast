@@ -23,13 +23,13 @@
 
 | Phase | Name | Status |
 |---|---|---|
-| 0 | Evidence closure (audits) | A, B, B3, C, D, E done and thesis PDF read; decisions below await your OK; **next: Phase 1** |
+| 0 | Evidence closure (audits) | complete |
 | 1 | Baseline and hygiene (docs only) | not started |
 | 2 | Model port (thesis network) | not started |
 | 3 | Normalisation, threshold, metrics contract | blocked by D + decisions |
 | 4 | Event builder and curated events (local data only) | not started |
 | 5 | Real-run and evaluation gate | not started |
-| 6 | Web/DB hardening | not started |
+| 6 | Web/DB hardening | implementation complete on `fix/web-api-contract`; owner review and merge pending |
 | 7 | End-to-end smoke test | not started |
 | 8A / 8B / 8C | UI: shell + events page / event page / history page | not started |
 | 9 | Docker and CI | not started |
