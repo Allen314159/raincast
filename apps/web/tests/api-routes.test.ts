@@ -201,17 +201,33 @@ describe("forecast routes", () => {
   });
 
   it("rejects an oversized request body", async () => {
-      const response = await postForecast(
-        new Request("http://localhost/api/forecasts", {
-          method: "POST",
-          body: `{"eventId":"${"x".repeat(1_048_576)}"}`,
-        }),
-      );
+    const response = await postForecast(
+      new Request("http://localhost/api/forecasts", {
+        method: "POST",
+        body: `{"eventId":"${"x".repeat(4097)}"}`,
+      }),
+    );
 
-      expect(response.status).toBe(413);
-      expect(await response.json()).toEqual({
-        error: { code: "payload_too_large", message: "Request body is too large" },
+    expect(response.status).toBe(413);
+    expect(await response.json()).toEqual({
+      error: { code: "payload_too_large", message: "Request body is too large" },
     });
+  });
+
+  it("accepts a small valid request body", async () => {
+    prismaMock.radarEvent.findUnique.mockResolvedValue(event);
+    inferenceMock.mockResolvedValue(prediction);
+    prismaMock.forecast.create.mockResolvedValue({ id: "run-2" });
+
+    const response = await postForecast(
+      new Request("http://localhost/api/forecasts", {
+        method: "POST",
+        body: JSON.stringify({ eventId: event.slug }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ runId: "run-2", eventId: event.slug });
   });
 
   it.each([

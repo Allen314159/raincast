@@ -7,16 +7,11 @@ import { prisma } from "../../../src/lib/prisma";
 import { forecastRequestSchema, predictResponseSchema } from "../../../src/lib/schemas";
 
 const forecastQuerySchema = z.object({ eventId: z.string().trim().min(1).optional() });
-const MAX_BODY_BYTES = 1_048_576;
+const MAX_BODY_BYTES = 4 * 1024;
 
 export async function POST(request: Request): Promise<NextResponse> {
   let body: unknown;
   try {
-    const contentLength = request.headers.get("content-length");
-    if (contentLength && Number(contentLength) > MAX_BODY_BYTES) {
-      return errorResponse(413, "payload_too_large", "Request body is too large");
-    }
-
     const bytes = await request.arrayBuffer();
     if (bytes.byteLength > MAX_BODY_BYTES) {
       return errorResponse(413, "payload_too_large", "Request body is too large");

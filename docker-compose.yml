@@ -1,0 +1,22 @@
+services:
+  db:
+    image: postgres:16.9
+    container_name: raincast-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: raincast
+      POSTGRES_DB: raincast
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - raincast_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U raincast -d raincast"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  raincast_pgdata:

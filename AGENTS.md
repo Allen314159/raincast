@@ -15,6 +15,7 @@ Use these files in order:
 
 ## Hard rules
 
+- Never open, print or search `.env` files; credentials come from the environment; ask the owner if a credential is needed.
 - Never invent metrics, counts, sizes, latency, model results, or status claims.
 - Do not commit radar data, checkpoints, `.env` files, secrets, or the thesis PDF.
 - Never confuse the ConvLSTM baseline with the thesis U-Net + Transformer model.
