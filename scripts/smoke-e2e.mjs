@@ -77,6 +77,7 @@ function assertMetricSeries(metrics, seriesName) {
 }
 
 async function main() {
+  const started = performance.now();
   let health;
   try {
     const result = await request(`${inferenceUrl}/health`);
@@ -231,7 +232,7 @@ async function main() {
     console.error(`Smoke test failed: ${failures.join(", ")}`);
     process.exitCode = 1;
   } else {
-    console.log("Smoke test passed");
+    console.log(`Smoke test passed - total ${formatMs(performance.now() - started)}`);
   }
 }
 
