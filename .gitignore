@@ -38,3 +38,5 @@ data/*
 checkpoint/
 data/
 outputs/
+
+/apps/web/generated/prisma

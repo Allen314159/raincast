@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - "${PUBLISH_DB_PORT:-5432}:5432"
+      - "${PUBLIC_DB_PORT:-5432}:5432"
     volumes:
       - raincast_pgdata:/var/lib/postgresql/data
     healthcheck:
