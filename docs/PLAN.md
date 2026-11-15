@@ -1,6 +1,6 @@
 # RainCast — Development Plan (v2)
 
-> Replaces PLAN v1 · Status date: 2026-10-26 · Owner: Lam My Trang
+> Replaces PLAN v1 · Status date: 2026-11-15 · Owner: Lam My Trang
 > Order of authority: `docs/RULES.md` (how) > `docs/PROJECT.md` (what) > `docs/DECISIONS.md` (owner choices) > this file (order of work).
 > Every phase has: goal, entry gate, a **prompt to paste into the coding agent**, an **owner review checklist**, and an exit gate.
 
@@ -24,12 +24,14 @@
 | Phase | Name | Status |
 |---|---|---|
 | 0 | Evidence closure (audits) | A, B, B3, C, D, E done and thesis PDF read; decisions below await your OK; **next: Phase 1** |
-| 1 | Baseline and hygiene (docs only) | not started |
-| 2 | Model port (thesis network) | not started |
-| 3 | Normalisation, threshold, metrics contract | blocked by D + decisions |
-| 4 | Event builder and curated events (local data only) | not started |
-| 5 | Real-run and evaluation gate | not started |
-| 6 | Web/DB hardening | not started |
+| 1 | Baseline and hygiene (docs only) | done (audit E report still missing from `docs/audits/`) |
+| 2 | Model port (thesis network) | done; golden check against thesis classes not evidenced (see 2b) |
+| 2b | Golden checks (model and threshold vs thesis code) | not started |
+| 3 | Normalisation, threshold, metrics contract | done |
+| 4 | Event builder and curated events (local data only) | partial: scripts done, 3 events built, `manifest.json` missing, `check_events.py` fails |
+| 4b | Finish events and manifest | not started |
+| 5 | Real-run and evaluation gate | done, `docs/RESULTS.md` exists (owner confirms the GO/NO-GO table) |
+| 6 | Web/DB hardening | code, migration and seed done on `fix/web-api-contract`; **not merged**; worktree has unreviewed uncommitted changes |
 | 7 | End-to-end smoke test | not started |
 | 8A / 8B / 8C | UI: shell + events page / event page / history page | not started |
 | 9 | Docker and CI | not started |
@@ -62,7 +64,7 @@
 | Monthly raw products exist only as `.rar` files in `E:\PrecipitationNowcasting\Dataset` (no RAR tool was available to list them); `Dataset-Processed` holds only a shortcut; **no code that converts raw to the 512×512 archive exists locally** | audit D §2, §3 |
 | Archive `nhb_2023_05.npz`: one array `(4462, 512, 512, 2)`, float32, values in [0, 1], no NaNs, ~88.8% exact zeros in channel 0, no timestamps, 4462 frames instead of the 4464 a complete month would have. Channel 1 contains only 0.0 or 1.0 (136,874,055 ones of 1,169,686,528 values, 11.7%) and channel 0 is non-zero in about 11.2% of values. **Hypothesis (unverified): channel 1 is a validity mask and NaNs became zeros** | audits C, D |
 | The thesis code uses channel 0 only and an all-ones mask | audits A, C, D |
-| Audit C's "heavy target pixel" counts are **wrong by a 6-frame shift**: its script computed them on the six INPUT frames. Its count for start 3653 (112,979) equals audit D's HKO-threshold count for start 3647, i.e. the same frames seen as targets. **Do not use audit C's candidate list.** Audit D's frame convention is trusted, but its 112,979 count used the HKO evaluator threshold; Phase 4 uses the authoritative Singapore threshold and recomputes the count | my review of audits C and D; Phase 4 diagnostic |
+| Audit C's "heavy target pixel" counts are **wrong by a 6-frame shift**: its script computed them on the six INPUT frames. Its HKO count for start 3653 (112,979) equals audit D's count for start 3647, and its Singapore count (98,718) equals what the Phase 4 script measured for start 3647, i.e. the same frames seen as targets. **Do not use audit C's candidate list.** Audit D's list (start = first input frame, counts on the six target frames) is the one to trust, and Phase 4 recomputes it | my review of audits C and D |
 | **Time alignment (audit E):** raw day 2023-05-26 frame k = archive index **3598 + k** (combined correlation 0.996; next best offset 3597 gives 0.975; both halves of the day pick 3598). The count is self-consistent: 3598 + 144 + 720 = 4462, so the two missing frames lie before 26 May and 27–31 May look complete. Indices 3598–3741 (26 May) are verified; 3742 and up (27–31 May) are dated by this arithmetic only; indices below 3598 can be off by up to 2 frames (about 20 minutes) | audit E §2–4 |
 | **Value scale (audit E):** `x = (dBZ+10)/70` fits much better than `x = dBZ/70` (sum of percentile errors 0.104 vs 0.497 with the resize hypothesis; 0.063 vs 0.432 with centre crop, which is a poor spatial match). Decisive point: resizing cannot create values above the raw maximum, yet the archive reaches 1.0 where the raw frame maximum is 63 dBZ (0.90 under dBZ/70). Residual: archive P99 (0.883) is higher than `(dBZ+10)/70` predicts (0.72–0.74), unexplained (different pixel subsets or an extra step) | audit E §5 |
 | **Spatial conversion (audit E):** full-frame bilinear resize 720×720 → 512×512, identity orientation, NaN as 0, gives Pearson correlation 0.991 (frame k=45); centre crop gives 0.38; flips and transposes are worse. Implied pixel size ≈ 240 km / 512 ≈ 0.469 km (my arithmetic, assumes the whole 720 × 0.3333 km frame was used). Original script still not found | audit E §6 |
@@ -179,7 +181,7 @@ Do these in order. It takes 15–30 minutes.
 | Grid | Archive = full raw 720×720 frame bilinearly resized to 512×512 (≈ 0.469 km per pixel), NaN → 0 |
 | Channel 1 | Probably a validity mask; not used by the thesis; ignored by RainCast (D11) |
 | Time | Archive index 3598 + k = raw frame k of 2023-05-26 (verified); 27–31 May by arithmetic; before 26 May ±2 frames |
-| Events | Take them from indices ≥ 3598. Audit D's frame convention is start = first input frame and counts the six target frames, but its 112,979 reference used the HKO threshold. Phase 4 recomputes the Singapore-threshold ranking inside indices 3598 to 4461. Audit C's ranking is wrong (it counted input frames) |
+| Events | Take them from indices ≥ 3598. Audit D's ranking (start = first input frame, counts on the six target frames) puts 3647 first (112,979 heavy target pixels at the HKO threshold; 98,718 at the Singapore threshold the app uses), then 2905, 3361, 3716, 4351, 2342, 3794, 4059, … Of its top 15, nine start at index 3598 or higher (3623, 3647, 3716, 3746, 3770, 3794, 3929, 4059, 4351); of those, 3623, 3647 and 3716 are on 26 May. Phase 4 recomputes the ranking inside indices 3598 to 4461. Audit C's ranking is wrong (it counted input frames) |
 
 **Optional owner actions (do not block Phase 1):**
 
@@ -271,6 +273,31 @@ BACKGROUND (verified by audits in docs/audits/): services/inference/app/model.py
 
 ---
 
+### Phase 2b — Golden checks (model and threshold against the thesis code)
+
+**Goal:** prove with numbers that the ported model and the threshold constants agree with the thesis code. Phase 5 shows plausible scores, but the equivalence evidence required by Phases 2 and 3 is not in the repo.
+
+**Entry gate:** Phase 6 merged (clean `main`). Does not block Phase 7.
+
+**Branch:** `chore/golden-checks`
+
+**Prompt:**
+
+```text
+TASK: Phase 2b golden checks. Local verification only; no behaviour change in the app; nothing here runs in CI.
+1. Check whether services/inference/scripts/verify_against_thesis.py and verify_threshold_against_thesis.py exist. If missing, create them as specified in Phase 2 item 6 and Phase 3 item 4 of docs/PLAN.md; if present, review them and say whether they do what the plan says.
+2. verify_against_thesis.py: THESIS_REPO and MODEL_PATH come from the environment. Load the checkpoint into the RainCast model and into the thesis classes (peepholes keep their zero initial value, strict=False, print the missing keys: 18 are expected). Run a fixed-seed random [6,1,1,512,512] input through both and print max and mean absolute difference. Then repeat with ONE real window from the May archive (first input frame index 3647; stream the archive, never load it whole) and print the same differences plus the raw output min/max/mean. Target: max abs difference < 1e-5. If larger, find the first diverging layer by comparing intermediate outputs; do not change the model to make it pass.
+3. verify_threshold_against_thesis.py: table for 0.5, 2, 5, 10, 30 mm/h: thesis rainfall_to_pixel with its default pair (58.53, 1.56) and with a=61.75, b=1.61, next to RainCast's thresholds for both pairs. Report any difference above 1e-6.
+4. Add a section "Model equivalence check" to docs/RESULTS.md with date, commands, and the real numbers. No numbers you did not measure.
+5. No new dependencies. Report in the standard 7-section format.
+```
+
+**Owner review:** run both scripts yourself. The model check must print `max abs diff < 1e-5` for both inputs; the threshold table must agree to 1e-6. If the model check fails, stop and paste the report to your brain chat before any README claim says "ported thesis architecture".
+
+**Exit gate:** both checks pass and are recorded in `docs/RESULTS.md`.
+
+---
+
 ### Phase 3 — Normalisation, threshold and metrics contract
 
 **Goal:** one place in the code defines how a pixel becomes dBZ and rain rate, and which pixel value counts as "heavy rain"; renderer and metrics use it; docs match.
@@ -319,8 +346,8 @@ TASK: Phase 3 preprocessing contract. Implement what docs/DECISIONS.md D1 (Z-R p
 TASK: Phase 4 event builder. Data files stay LOCAL and git-ignored. Env var NHB_ARCHIVE_DIR points to E:\PrecipitationNowcasting\NhaBe-npz.
 
 1. services/inference/scripts/build_event.py: CLI args: --archive <path to nhb_YYYY_MM.npz> --start <frame index> --slug <slug> [--channel 0]. It streams the zip member radar_sequence.npy frame by frame (never loads the whole array; RAM is about 2 GB), reads 12 consecutive frames, takes the channel, asserts finite, range [0,1], shape (512,512), splits into input (first 6) and target (last 6), and writes services/inference/data/events/<slug>.npz with float32 arrays input and target of shape (6,512,512) (per D8). Put the pure logic in a function that takes already-read frames, so it can be unit-tested with tiny arrays; the CLI enforces 512.
-2. services/inference/scripts/select_events.py: scans the archive (stride 1, streaming) and prints candidate windows with their heavy-rain fraction in the six target frames (threshold from preprocess.py), keeping windows at least 24 frames apart. Selection must NOT use model predictions. Index convention (write it in the script docstring): start = index of the FIRST input frame; input frames are start..start+5; target frames are start+6..start+11; the heavy-rain count is taken on the six TARGET frames only. Add a regression test with a hand-made array where the input frames are heavy and the target frames are not (count must be 0) and the reverse, because a previous audit counted the wrong frames. Sanity target: with the D1/D2 Singapore threshold the best window should be start 3647 with 98,718 heavy target pixels. If the result differs, investigate the calculation before choosing events.
-3. Per D4, consider only windows whose 12 frames all lie in archive indices 3598..4461 (26-31 May 2023). Choose 8-10 events by heavy-rain-fraction quantiles of that range: 3 high, 3 medium, 2-3 low but non-zero, at least 2 of them inside day 26 (indices 3598..3741, raw-verified). Time of an event = 2023-05-26T00:03:03Z + 10 min x (start index - 3598), start index = first input frame; round to the minute and keep UTC. Print the table of chosen events (slug, start index, UTC time, local time UTC+7, heavy fraction, time basis: "raw-verified" for 3598..3741, "derived from frame-count consistency" above). For events inside day 26 also cross-check the computed time against the raw file names in E:\PrecipitationNowcasting\ConvLSMT\nha-be-dataset\20230526 and report the difference in seconds. Slug format: YYYY-MM-DD-hhmm in UTC (for example 2023-05-26-0813). The heaviest day-26 window must be included: 26 May 2023 is also the thesis case-study date (thesis Figures 5.5-5.8, test set); do not claim your frames equal the thesis figure unless the owner confirms the figure's timestamp.
+2. services/inference/scripts/select_events.py: scans the archive (stride 1, streaming) and prints candidate windows with their heavy-rain fraction in the six target frames (threshold from preprocess.py), keeping windows at least 24 frames apart. Selection must NOT use model predictions. Index convention (write it in the script docstring): start = index of the FIRST input frame; input frames are start..start+5; target frames are start+6..start+11; the heavy-rain count is taken on the six TARGET frames only. Add a regression test with a hand-made array where the input frames are heavy and the target frames are not (count must be 0) and the reverse, because a previous audit counted the wrong frames. Add a --threshold-pair option to select_events.py (singapore = default, the app threshold from preprocess.py; hko = the 0.6181969 thesis-evaluator threshold, for the reproduction check only). Sanity targets, each measured twice by earlier audits (audit C counted these same six frames as the inputs of its start 3653): start 3647 must give 98,718 heavy target pixels with singapore and 112,979 with hko. Run both and paste the numbers. If either differs, report it and stop instead of choosing events.
+3. Per D4, consider only windows whose 12 frames all lie in archive indices 3598..4461 (26-31 May 2023). First print the full ranked candidate table (all non-overlapping windows at stride 12 inside the range, with heavy count and fraction). Then choose 8-10 events by this rule, written in the script docstring: high = the top 3 by heavy count (start 3647 must be one of them); medium = the windows closest to the 60th, 70th and 80th percentile of heavy count among candidates with count > 0; low = the windows closest to the 20th and 35th percentile among candidates with count > 0; at least 2 events inside day 26 (indices 3598..3741, raw-verified). Never use model output to choose. Time of an event = 2023-05-26T00:03:03Z + 10 min x (start index - 3598), start index = first input frame; round to the minute and keep UTC. Print the table of chosen events (slug, start index, UTC time, local time UTC+7, heavy fraction, time basis: "raw-verified" for 3598..3741, "derived from frame-count consistency" above). For events inside day 26 also cross-check the computed time against the raw file names in E:\PrecipitationNowcasting\ConvLSMT\nha-be-dataset\20230526 and report the difference in seconds. Slug format: YYYY-MM-DD-hhmm in UTC (for example 2023-05-26-0813). The heaviest day-26 window must be included: 26 May 2023 is also the thesis case-study date (thesis Figures 5.5-5.8, test set); do not claim your frames equal the thesis figure unless the owner confirms the figure's timestamp.
 4. Write services/inference/data/events/manifest.json (git-ignored) AND generate apps/web/prisma/events.json (committed) from the same chosen list: slug, name (neutral, e.g. "Nha Be radar, May 2023, window w3653"), startTime (ISO UTC, never null), description (factual only: radar product, UTC and local time, archive start index, time basis, measured heavy-rain fraction; no invented place names). Remove the three placeholder events.
 5. services/inference/scripts/check_events.py: verifies every slug in apps/web/prisma/events.json has a valid .npz with the right keys/shape/dtype/range and every .npz has a manifest entry; exits non-zero on mismatch.
 6. Tests for the pure logic (shape/range/NaN failures, correct split, heavy-fraction computation on a hand-made array). CI must not need archives.
@@ -342,6 +369,33 @@ TASK: Phase 4 event builder. Data files stay LOCAL and git-ignored. Env var NHB_
 **Exit gate:** 8–10 events built locally; `check_events.py` passes; only the manifest JSON and scripts committed.
 
 **If it fails:** if streaming is too slow or memory-heavy, ask for a one-time conversion to an uncompressed `.npy` in a scratch folder (outside git).
+
+---
+
+### Phase 4b — Finish events and manifest
+
+**Goal:** close the Phase 4 exit gate: a valid manifest, `check_events.py` passing, and the agreed number of events (8–10 per the plan, or a number you choose).
+
+**Entry gate:** Phase 6 merged. Decide the target number of events (3 are enough for Phase 7 and the smoke test; 8 is better for the UI and demo).
+
+**Branch:** `feat/events-complete`
+
+**Prompt:**
+
+```text
+TASK: Phase 4b finish events and manifest. Data files stay LOCAL and git-ignored. Do not fabricate a manifest: services/inference/data/events/manifest.json is missing, so regenerate it from the real archive.
+1. Rebuild each of the three existing events (2023-05-26-0813, 2023-05-26-1703, 2023-05-28-1903) from E:/PrecipitationNowcasting/NhaBe-npz/nhb_2023_05.npz with build_event.py into a temporary folder OUTSIDE the repo, compare the arrays with the existing local files (exactly equal or the largest difference), and report. State, for each, the first input frame index, UTC time (formula in docs/DECISIONS.md D4), time basis, and heavy fraction at the Singapore threshold.
+2. Run select_events.py for indices 3598..4461 with the Singapore threshold. Print the ranked candidate table. Re-apply the selection rule of Phase 4 item 3 in docs/PLAN.md to reach <TARGET N> events in total (keep the three existing ones if they fit the rule; if they do not, report and ask me instead of replacing them). Never use model output to choose.
+3. Build the missing events with build_event.py, which must also write services/inference/data/events/manifest.json (git-ignored).
+4. Generate apps/web/prisma/events.json from the manifest with a small script (services/inference/scripts/export_web_manifest.py; same fields as the current file: slug, name, startTime ISO UTC, description with radar product, UTC and local time UTC+7, start index, time basis, heavy fraction). No invented place names. Add a unit test for the pure export function.
+5. Run check_events.py and paste its output; it must exit 0.
+6. Run `npm run prisma:seed` twice in apps/web and print row counts through `docker compose exec -T db psql -U raincast -d raincast -c "..."` (counts only). RadarEvent must equal the number of events; Forecast must be unchanged. Never open or print .env files.
+7. Run ruff, pytest, and the web tests; paste counts. Confirm with `git status` that no .npz/.npy is staged. Report in the standard 7-section format.
+```
+
+**Owner review:** run `check_events.py` yourself; open two events as images (ask the agent for a small script that renders frame 0 of `input` and `target` to a PNG outside the repo); check `events.json` timestamps against the formula for two events; check the seed counts after two runs.
+
+**Exit gate:** `check_events.py` exits 0; counts match; no data committed.
 
 ---
 
@@ -415,6 +469,10 @@ TASK: Phase 6 web/DB hardening in apps/web. Follow docs/RULES.md section 3 (stri
 **Exit gate:** all web checks green; migration committed; seed produces your real events; PROJECT.md §7 matches.
 
 **If it fails:** if migrations fail on your PostgreSQL version, paste the exact error; do not let the agent switch to `db push` silently.
+
+---
+
+**Before you merge Phase 6 (added after the 2026-11-15 project report):** `git status` must be clean. The report found uncommitted changes nobody on this plan made (`docker-compose.yml`, `.env.example`, `apps/web/prisma/schema.prisma`, `apps/web/prisma.config.ts`, `.dockerignore`, and a deleted `app/favicon.ico`). Save them with `git stash push -u` (reversible), recreate the dev database from the committed Compose file, and re-run migrate and seed. Merge only after CI is green on the PR. Re-introduce any wanted Docker change deliberately in Phase 9.
 
 ---
 

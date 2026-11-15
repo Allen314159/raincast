@@ -1,20 +1,20 @@
 [
   {
-    "slug": "placeholder-event-1",
-    "name": "Placeholder Event One",
-    "startTime": "2023-05-14T00:00:00.000Z",
-    "description": "FAKE DESCRIPTION: replace this event description."
+    "slug": "2023-05-26-0813",
+    "name": "2023-05-26 08:13 event",
+    "startTime": "2023-05-26T08:13:00.000Z",
+    "description": "Curated event window from the May 2023 radar archive."
   },
   {
-    "slug": "placeholder-event-2",
-    "name": "Placeholder Event Two",
-    "startTime": "2023-05-26T00:00:00.000Z",
-    "description": "FAKE DESCRIPTION: replace this event description."
+    "slug": "2023-05-26-1703",
+    "name": "2023-05-26 17:03 event",
+    "startTime": "2023-05-26T17:03:00.000Z",
+    "description": "Curated event window from the May 2023 radar archive."
   },
   {
-    "slug": "placeholder-event-3",
-    "name": "Placeholder Event Three",
-    "startTime": "2023-06-01T00:00:00.000Z",
-    "description": "FAKE DESCRIPTION: replace this event description."
+    "slug": "2023-05-28-1903",
+    "name": "2023-05-28 19:03 event",
+    "startTime": "2023-05-28T19:03:00.000Z",
+    "description": "Curated event window from the May 2023 radar archive."
   }
 ]

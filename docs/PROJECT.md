@@ -168,11 +168,18 @@ A metric is `null` when its denominator is 0 (e.g. no heavy rain in a frame). Ne
 | Route | Body / Params | Result |
 |---|---|---|
 | `GET /api/events` | — | list of `RadarEvent` |
-| `GET /api/events/:slug` | — | one event |
-| `POST /api/forecasts` | `{ eventId }` (Zod) | calls FastAPI, saves run, returns frames + metrics + run id |
-| `GET /api/forecasts?eventId=` | optional filter | saved runs (metrics only), newest first |
+| `GET /api/events/:slug` | — | one event resolved by its public slug |
+| `POST /api/forecasts` | `{ eventId: <slug> }` (Zod) | resolves the slug, calls FastAPI, verifies response identity and model version, saves the run, and returns frames + metrics + run id |
+| `GET /api/forecasts?eventId=<slug>` | optional public-slug filter | resolves the slug, then returns saved runs (metrics only), newest first |
 
 Errors use a single JSON shape: `{ "error": { "code": "string", "message": "string" } }`.
+Unknown slugs return `EVENT_NOT_FOUND`. Request validation returns
+`INVALID_REQUEST` or `INVALID_QUERY`. A request body larger than 1 MiB returns
+`payload_too_large`; this bounds memory used while parsing untrusted JSON while
+leaving room for the small forecast request. Inference identity or response
+validation failures return `inference_bad_response`. Prisma failures return
+`database_unavailable` with HTTP 503. Inference transport failures retain their
+`INFERENCE_502`, `INFERENCE_503`, and `INFERENCE_504` codes.
 
 ### 7.4 Database (Prisma)
 
@@ -199,7 +206,10 @@ model Forecast {
   @@index([eventId, createdAt])
 }
 ```
-Events are seeded from `prisma/seed.ts` using a manifest of slugs, names, start times.
+Events are seeded from `prisma/seed.ts` using a manifest of slugs, names,
+required UTC `startTime` values, and nullable descriptions. Forecast CSI arrays
+contain six nullable-or-number values; `description` is the only nullable
+database field.
 
 ## 8. Metric definitions
 

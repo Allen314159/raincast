@@ -1,20 +1,22 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { databaseUnavailableResponse, errorResponse } from "../../../src/lib/api-errors";
 import { InferenceClientError, predict } from "../../../src/lib/inference-client";
 import { prisma } from "../../../src/lib/prisma";
 import { forecastRequestSchema, predictResponseSchema } from "../../../src/lib/schemas";
 
 const forecastQuerySchema = z.object({ eventId: z.string().trim().min(1).optional() });
-
-function errorResponse(status: number, code: string, message: string): NextResponse {
-  return NextResponse.json({ error: { code, message } }, { status });
-}
+const MAX_BODY_BYTES = 4 * 1024;
 
 export async function POST(request: Request): Promise<NextResponse> {
   let body: unknown;
   try {
-    body = await request.json();
+    const bytes = await request.arrayBuffer();
+    if (bytes.byteLength > MAX_BODY_BYTES) {
+      return errorResponse(413, "payload_too_large", "Request body is too large");
+    }
+    body = JSON.parse(new TextDecoder().decode(bytes)) as unknown;
   } catch {
     return errorResponse(400, "INVALID_REQUEST", "Request body must be valid JSON");
   }
@@ -24,30 +26,47 @@ export async function POST(request: Request): Promise<NextResponse> {
     return errorResponse(400, "INVALID_REQUEST", "Request body is invalid");
   }
 
-  const event = await prisma.radarEvent.findUnique({ where: { slug: requestResult.data.eventId } });
+  let event;
+  try {
+    event = await prisma.radarEvent.findUnique({ where: { slug: requestResult.data.eventId } });
+  } catch {
+    return databaseUnavailableResponse();
+  }
   if (!event) {
     return errorResponse(404, "EVENT_NOT_FOUND", "Event not found");
   }
 
   let prediction;
   try {
-    prediction = predictResponseSchema.parse(await predict(event.slug));
+    const predictionResult = predictResponseSchema.safeParse(await predict(event.slug));
+    if (!predictionResult.success) {
+      return errorResponse(502, "inference_bad_response", "Inference response is invalid");
+    }
+    if (predictionResult.data.eventId !== event.slug) {
+      return errorResponse(502, "inference_bad_response", "Inference response identity is invalid");
+    }
+    prediction = predictionResult.data;
   } catch (error: unknown) {
     if (error instanceof InferenceClientError) {
       return errorResponse(error.status, `INFERENCE_${error.status}`, error.message);
     }
-    return errorResponse(502, "INFERENCE_502", "Inference service returned an invalid response");
+    return errorResponse(502, "inference_bad_response", "Inference service returned an invalid response");
   }
 
-  const forecast = await prisma.forecast.create({
-    data: {
-      eventId: event.id,
-      modelVersion: prediction.modelVersion,
-      latencyMs: prediction.latencyMs,
-      csiConvlstm: prediction.metrics.convlstm.csi,
-      csiPersist: prediction.metrics.persistence.csi,
-    },
-  });
+  let forecast;
+  try {
+    forecast = await prisma.forecast.create({
+      data: {
+        eventId: event.id,
+        modelVersion: prediction.modelVersion,
+        latencyMs: prediction.latencyMs,
+        csiConvlstm: prediction.metrics.convlstm.csi,
+        csiPersist: prediction.metrics.persistence.csi,
+      },
+    });
+  } catch {
+    return databaseUnavailableResponse();
+  }
 
   return NextResponse.json({ ...prediction, runId: forecast.id });
 }
@@ -59,9 +78,24 @@ export async function GET(request: Request): Promise<NextResponse> {
     return errorResponse(400, "INVALID_QUERY", "Query parameters are invalid");
   }
 
-  const forecasts = await prisma.forecast.findMany({
-    where: queryResult.data.eventId ? { eventId: queryResult.data.eventId } : undefined,
-    orderBy: { createdAt: "desc" },
-  });
-  return NextResponse.json(forecasts);
+  try {
+    let eventId: string | undefined;
+    if (queryResult.data.eventId) {
+      const event = await prisma.radarEvent.findUnique({
+        where: { slug: queryResult.data.eventId },
+      });
+      if (!event) {
+        return errorResponse(404, "EVENT_NOT_FOUND", "Event not found");
+      }
+      eventId = event.id;
+    }
+
+    const forecasts = await prisma.forecast.findMany({
+      where: eventId ? { eventId } : undefined,
+      orderBy: { createdAt: "desc" },
+    });
+    return NextResponse.json(forecasts);
+  } catch {
+    return databaseUnavailableResponse();
+  }
 }

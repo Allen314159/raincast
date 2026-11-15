@@ -35,6 +35,19 @@ npm test
 npm run build
 ```
 
+## Database (Docker)
+
+```bash
+docker compose up -d db
+docker compose ps
+docker compose down
+```
+
+- `docker compose down` keeps the database data volume for the next run.
+- `docker compose down -v` deletes the database volume and all stored data.
+- The Postgres service listens on port `5433` because a local Windows PostgreSQL service already uses port `5432`.
+- The required environment variables are `POSTGRES_PASSWORD` in the repository root `.env` and the app-level `DATABASE_URL` in `apps/web/.env`.
+
 ## Run the inference service
 
 ```bash

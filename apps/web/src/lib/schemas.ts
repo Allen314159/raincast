@@ -10,13 +10,15 @@ const modelMetricsSchema = z.object({
   bias: sixNumbersSchema,
 });
 
+export const eventSlugSchema = z.string().trim().min(1);
+
 export const forecastRequestSchema = z.object({
-  eventId: z.string().trim().min(1),
+  eventId: eventSlugSchema,
 });
 
 export const predictResponseSchema = z.object({
   eventId: z.string().min(1),
-  modelVersion: z.string().min(1),
+  modelVersion: z.string().trim().min(1),
   thresholdMmPerHour: z.number().finite(),
   leadMinutes: z.tuple([
     z.literal(10),

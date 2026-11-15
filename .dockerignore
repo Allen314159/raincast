@@ -1,0 +1,15 @@
+Dockerfile
+node_modules
+npm-debug.log
+*.md
+.next
+.git
+.gitignore
+dist
+build
+coverage
+.vscode
+.idea
+*.log
+.DS_Store
+.husky
