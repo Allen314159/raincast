@@ -4,19 +4,33 @@ services:
     container_name: raincast-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: raincast
-      POSTGRES_DB: raincast
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - "127.0.0.1:5433:5432"
+      - "${PUBLISH_DB_PORT:-5432}:5432"
     volumes:
       - raincast_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U raincast -d raincast"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 5s
       timeout: 5s
       retries: 10
       start_period: 10s
+    # networks:
+    #   - raincast-network
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    # PostgreSQL shared memory settings
+    shm_size: 128mb
 
 volumes:
   raincast_pgdata:
