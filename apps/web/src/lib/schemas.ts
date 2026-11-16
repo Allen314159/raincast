@@ -40,6 +40,10 @@ export const predictResponseSchema = z.object({
   latencyMs: z.number().int().nonnegative(),
 });
 
+export const forecastResponseSchema = predictResponseSchema.extend({
+  runId: z.string().min(1),
+});
+
 export const errorResponseSchema = z.object({
   error: z.object({
     code: z.string().min(1),
@@ -48,3 +52,4 @@ export const errorResponseSchema = z.object({
 });
 
 export type PredictResponse = z.infer<typeof predictResponseSchema>;
+export type ForecastResponse = z.infer<typeof forecastResponseSchema>;
