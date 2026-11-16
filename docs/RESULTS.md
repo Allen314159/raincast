@@ -2,6 +2,51 @@
 
 Date: 2026-10-26
 
+## Model equivalence check
+
+Date: 2026-11-16
+
+These are local-only checks against the thesis repository and the local
+checkpoint. They are not part of CI and do not change app behaviour.
+
+Commands:
+
+```powershell
+$env:THESIS_REPO = "E:\PrecipitationNowcasting\ConvLSMT"
+$env:MODEL_PATH = (Resolve-Path services\inference\app\checkpoint\encoder_forecaster_77000.pth).Path
+$env:ARCHIVE_PATH = "E:\PrecipitationNowcasting\NhaBe-npz\nhb_2023_05.npz"
+& e:/Project/raincast/.venv/Scripts/python.exe services\inference\scripts\verify_against_thesis.py
+
+$env:THESIS_REPO = "E:\PrecipitationNowcasting\ConvLSMT"
+& e:/Project/raincast/.venv/Scripts/python.exe services\inference\scripts\verify_threshold_against_thesis.py
+```
+
+The checkpoint loaded with `strict=True` into RainCast and `strict=False`
+into the thesis classes. The measured missing-key count was 18, all thesis
+peephole parameters; unexpected-key count was 0. Both fixed-seed random input
+and the streamed real window beginning at archive index 3647 produced:
+
+| Input | Max absolute difference | Mean absolute difference |
+|---|---:|---:|
+| Fixed-seed random `[6,1,1,512,512]` | 0 | 0 |
+| Real archive window, start 3647 | 0 | 0 |
+
+The real RainCast raw output statistics were:
+
+| Minimum | Maximum | Mean |
+|---:|---:|---:|
+| -0.103196606 | 0.8090888858 | 0.1650096327 |
+
+Threshold comparison:
+
+| Rain rate (mm/h) | Thesis default / RainCast HKO | Difference | Thesis Singapore / RainCast Singapore | Difference |
+|---:|---:|---:|---:|---:|
+| 0.5 | 0.3282531044 | 0 | 0.3294255241 | 0 |
+| 2 | 0.4624264739 | 0 | 0.4678993221 | 0 |
+| 5 | 0.5511102473 | 0 | 0.5594255241 | 0 |
+| 10 | 0.6181969320 | 0 | 0.6286624231 | 0 |
+| 30 | 0.7245268116 | 0 | 0.7384003117 | 0 |
+
 ## Run metadata
 
 | Item | Measured value |
