@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "../../../src/lib/prisma";
+import ForecastRunner from "../../components/ForecastRunner";
+import { formatEventDate } from "../../../src/lib/format-date";
 
 interface EventPageProps {
   params: Promise<{ slug: string }>;
@@ -35,8 +37,14 @@ export default async function EventPage({ params }: EventPageProps) {
     <>
       <h1 className="text-2xl font-bold">{event.name}</h1>
       <p className="mt-2 text-gray-600 dark:text-gray-400">
-        Event detail page — forecast view coming in Phase 8B.
+        {formatEventDate(event.startTime)}
       </p>
+      {event.description && (
+        <p className="mt-4 max-w-2xl text-gray-700 dark:text-gray-300">
+          {event.description}
+        </p>
+      )}
+      <ForecastRunner slug={event.slug} />
     </>
   );
 }
